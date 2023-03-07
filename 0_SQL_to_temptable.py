@@ -26,9 +26,9 @@ try:
 #   flag_overwrite_dates = getArgument('VAR_FLAG_OVERWRITE_DATES')
 
 except:
-  region_home = 'SOA' ## SOA, NAMET, ASEAN
-  country_home = 'INDIA' ## INDIA, PK, INDONESIA
-  country_loop = 'INDIA_HEALTH' ## INDIA_HOME, PAKISTAN_HOME, INDO_HOME
+  region_home = 'ASEAN' ## SOA, NAMET, ASEAN
+  country_home = 'MY' ## INDIA, PK, INDONESIA,MY
+  country_loop = 'MY_HEALTH' ## INDIA_HOME, PAKISTAN_HOME, INDO_HOME
   start_date = 201701
   end_date = 202010
 #   database_name = 'smart_order' ## Production
@@ -39,12 +39,12 @@ flag_overwrite_dates = 'FALSE' ## added to run cmd 3 - 18/09/2019 - JA
 
 ## Data path defenition - Py
 if environment == 'dev':
-  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH':
+  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH' or country_loop=='MY_HEALTH':
     data_path = 'wasbs://smartorder@devrbainesasmartorderhc.blob.core.windows.net/dev' ## New DEV Env
   else:    
     data_path = 'wasbs://smartorder@devrbainesasmartorder.blob.core.windows.net/dev'
 elif environment == 'prod':
-  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH':
+  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH' or country_loop=='MY_HEALTH':
     data_path = 'wasbs://smartorder@prdrbainesasmartorderhc.blob.core.windows.net/prod'
   else:
     data_path = 'wasbs://smartorder@prdrbainesasmartorder.blob.core.windows.net/prod' ## New Prod Env
@@ -65,6 +65,8 @@ if country_loop == 'INDIA_HEALTH':
   blob_path = "wasbs://newspageinputindiahealth@prdrbainesasmartorderhc.blob.core.windows.net"
 elif country_loop == 'PAK_HEALTH':
   blob_path = "wasbs://newspageinputpakhealth@prdrbainesasmartorderhc.blob.core.windows.net"
+elif country_loop == 'MY_HEALTH':
+  blob_path = "wasbs://newspageinputmy@prdrbainesasmartorderhc.blob.core.windows.net"
 else:
   blob_path = "wasbs://newspageinputindiahealth@prdrbainesasmartorderhc.blob.core.windows.net"
 
@@ -80,7 +82,7 @@ password = "Qwerty123!"
 # DBTITLE 1,AI Model Automation DEV or PROD blob storage access
 if environment == 'dev':
   ## DEV Storage Account
-  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH':
+  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH' or country_loop=='MY_HEALTH' :
     storage_account_name = "devrbainesasmartorderhc"
     spark.conf.set("fs.azure.account.key." + storage_account_name + ".blob.core.windows.net", dbutils.secrets.get(scope = 'devrbainekvsmartorderhc', key = 'Blob-devrbainesasmartorderhc-key'))
   else: 
@@ -88,7 +90,7 @@ if environment == 'dev':
     spark.conf.set("fs.azure.account.key." + storage_account_name + ".blob.core.windows.net", dbutils.secrets.get(scope = 'devrbainekvsmartorder', key = 'Blob-devrbainesasmartorder-key'))
 
 else:
-  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH':
+  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH' or country_loop=='MY_HEALTH':
     ## PROD Storage Account
     storage_account_name = "prdrbainesasmartorderhc"
     spark.conf.set("fs.azure.account.key." + storage_account_name + ".blob.core.windows.net", dbutils.secrets.get(scope = 'prdrbainekvsmartorderhc', key = 'storageaccountsohcpulse'))
@@ -102,7 +104,7 @@ else:
 
 # DBTITLE 1,NewsPage Blob container - only for DEV
 if environment == 'dev':
-  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH':
+  if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH' or country_loop=='MY_HEALTH':
     ## PROD Storage Account
     storage_account_name_2 = "prdrbainesasmartorderhc"
     spark.conf.set("fs.azure.account.key." + storage_account_name_2 + ".blob.core.windows.net", dbutils.secrets.get(scope = 'prdrbainekvsmartorderhc', key = 'storageaccountsohcpulse'))
@@ -111,7 +113,7 @@ if environment == 'dev':
 
 # DBTITLE 1,Libraries Import
 from functools import reduce
-from pyspark.sql.functions import col, when, round, expr, countDistinct, sum, count, concat, lit, min, max, UserDefinedFunction, datediff, explode, year, month, dayofmonth, rank, split, to_date, add_months, regexp_replace, size, collect_set, greatest, least, round, bround, upper, lower, dense_rank, row_number, mean, ceil, udf, date_add, last_day,trim
+from pyspark.sql.functions import col, when, round, expr, countDistinct, sum, count, concat, lit, min, max, UserDefinedFunction, datediff, explode, year, month, dayofmonth, rank, split, to_date, add_months, regexp_replace, size, collect_set, greatest, least, round, bround, upper, lower, dense_rank, row_number, mean, ceil, udf, date_add, last_day,trim,date_format
 from pyspark.sql.window import Window
 from re import sub
 import pandas as pd
@@ -129,12 +131,14 @@ if country_loop == 'INDIA_HEALTH':
   pulseData_Path = "wasbs://pulseinputindiahealth@prdrbainesasmartorderhc.blob.core.windows.net"
 elif country_loop == 'PAK_HEALTH':
   pulseData_Path = "wasbs://pulseinputpakhealth@prdrbainesasmartorderhc.blob.core.windows.net"
+elif country_loop == 'MY_HEALTH':
+  pulseData_Path = "wasbs://pulseinputmy@prdrbainesasmartorderhc.blob.core.windows.net"
 
-if country_loop == 'INDIA_HEALTH' or country_loop == 'PAK_HEALTH':
+if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH' or country_loop=='MY_HEALTH':
 ## Automation for picking Latest input file
   fPaths = dbutils.fs.ls(pulseData_Path)
   fPaths = spark.createDataFrame(fPaths)
-  fPaths = fPaths.filter(fPaths['name'].contains("RB_IND_HEALTH_SMART_ORDER"))
+  fPaths = fPaths.filter(fPaths['name'].contains("RB_"))
   fPaths = fPaths.orderBy('name',ascending=False)
   fPaths_0 = fPaths.collect()[0].path
   print(fPaths_0)
@@ -151,13 +155,18 @@ else:
 
 # COMMAND ----------
 
+remote_table1=remote_table1.withColumn('Year Month',to_date(col('Year Month').cast('string'),'yyyyMM'))\
+                           .withColumn('Year Month',date_format(col('Year Month'),'yyyy/MM'))
+
+# COMMAND ----------
+
 # DBTITLE 1,Remove Leading and Trailing Whitespace
 if country_loop=='PAK_HEALTH':
   remote_table1= remote_table1.withColumn('Channel Local', trim(col('Channel Local')))
 
 # COMMAND ----------
 
-if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH':
+if country_loop == 'INDIA_HEALTH' or country_loop=='PAK_HEALTH' or country_loop=='MY_HEALTH':
   remote_table = remote_table1\
   .withColumn("DB Channel", when(col("Distributor Code")=="1000061620", lit("DISTRIBUTOR")).otherwise(col("DB Channel")))
 
@@ -231,7 +240,7 @@ if not overwrite_dates:
   # End Date:   201907        # --> 2 months before.
   # ###########################
 
-  if country_loop == 'INDIA_HOME'  or country_loop=='PAK_HEALTH': ##Don;
+  if country_loop == 'INDIA_HOME'  or country_loop=='PAK_HEALTH': 
 #     start_date_temp = Dt.date.today() + du.relativedelta.relativedelta(months = -26)  ## ONLY FOR TESTING
     start_date_temp = Dt.date.today() + du.relativedelta.relativedelta(months = -36) ## Added to get start_date dynamically. 3 years back from end date (10/10/2019) - MS..changed start date to -35..KM (8Jan2021)
     start_date = start_date_temp.strftime('%Y%m') ## Added to get start_date dynamically. 3 years back from end date (10/10/2019) - MS
@@ -240,7 +249,7 @@ if not overwrite_dates:
 #     end_date_temp = Dt.date.today() + du.relativedelta.relativedelta(months = -3)  ## ONLY FOR TESTING
     end_date = end_date_temp.strftime('%Y%m')
   
-if country_loop == 'INDIA_HEALTH': ##Don;
+if country_loop == 'INDIA_HEALTH' or country_loop=='MY_HEALTH': ##Don;
 #     start_date_temp = Dt.date.today() + du.relativedelta.relativedelta(months = -26)  ## ONLY FOR TESTING
     start_date_temp = Dt.date.today() + du.relativedelta.relativedelta(months = -25) ## Added to get start_date dynamically. 3 years back from end date (10/10/2019) - MS..changed start date to -35..KM (8Jan2021)
     start_date = start_date_temp.strftime('%Y%m') ## Added to get start_date dynamically. 3 years back from end date (10/10/2019) - MS
@@ -324,6 +333,9 @@ if country_loop == 'INDIA_HEALTH':
 
 if country_loop == 'PAK_HEALTH':
   dt1 = remote_table
+  
+if country_loop == 'MY_HEALTH':
+  dt1 = remote_table
 
 dt3 = dt1.select("*")
 
@@ -338,11 +350,11 @@ def getDataFromBlob(blob_address, pattern, tableName, separator):
     file_date = file_date.strftime('%Y%m01')
     pattern = pattern + file_date
 #     pattern = pattern + Dt.date.today().strftime('%Y%m%d')
-#     pattern = pattern + '20230131' ## ONLY for TESTING Purpose (2020/01/03) MS
+#     pattern = pattern + '20221001' ## ONLY for TESTING Purpose (2020/01/03) MS
   else:
 #     pattern = pattern + Dt.date.today().strftime('%Y%m01')
     pattern = pattern + Dt.date.today().strftime('%Y%m%d') ### Changed to get the files for same day-Brij
-#     pattern = pattern + '20230131' ## ONLY for TESTING Purpose (2020/01/03) MS
+#     pattern = pattern + '20221001' ## ONLY for TESTING Purpose (2020/01/03) MS
 
 
   print(pattern) 
@@ -359,43 +371,50 @@ def getDataFromBlob(blob_address, pattern, tableName, separator):
 # COMMAND ----------
 
 # DBTITLE 1,Map Correct ASM and DB Mapping
-## For Updating the Distributor_code from POS_data- Brij (2022/11/18)
-POS_data = getDataFromBlob(blob_address = blob_path, pattern = 'RB01_PARTNERPOS_', tableName ='RB01_PARTNERPOS', separator = '|')
-POS_data = POS_data.filter((col('SalesRepCode').isNotNull()) & (col('SalesRepCode')!="") & (col('PartnerCode').isNotNull()) & (col('POSCode').isNotNull()))
-POS_data =POS_data.filter(col('POSStatus')==1) ## Added on request of kapil-11/06/2021
-POS_data=POS_data.select('POSCode','PartnerCode').distinct().withColumnRenamed('POSCode','outlet_unique_code')
+if country_loop=='INDIA_HEALTH':
+  ## For Updating the Distributor_code from POS_data- Brij (2022/11/18)
+  POS_data = getDataFromBlob(blob_address = blob_path, pattern = 'RB01_PARTNERPOS_', tableName ='RB01_PARTNERPOS', separator = '|')
+  POS_data = POS_data.filter((col('SalesRepCode').isNotNull()) & (col('SalesRepCode')!="") & (col('PartnerCode').isNotNull()) & (col('POSCode').isNotNull()))
+  POS_data =POS_data.filter(col('POSStatus')==1) ## Added on request of kapil-11/06/2021
+  POS_data=POS_data.select('POSCode','PartnerCode').distinct().withColumnRenamed('POSCode','outlet_unique_code')
 
 
-# For Updating ASM name -Brij (2022/11/18)
-asm_map = spark.read.csv(path = data_path + "/INDIA_HEALTH/TEMP/DB ASM Mapping.csv", header = True, inferSchema = True, sep = ',')
-asm_map=asm_map.withColumnRenamed('RB_CUST_CODE','PartnerCode')\
-                .withColumnRenamed('CUSTOM_ATTR14','New_ASM')\
-                .withColumn('New_ASM',upper(col('New_ASM')))\
-                .withColumn('New_ASM',when(col('New_ASM') == 'ASM_HP JK/CHD', 'ASM_HP JKCHD').otherwise(col('New_ASM')))\
-                .select('PartnerCode','New_ASM').distinct()\
-                .drop_duplicates(subset=['PartnerCode'])
-
-## cols order kept to be same for no error in notebook 0.1
-req_cols_order=dt3.columns
-
-## Updating the 'distributor_code' and 'asm' as it is not correct in pulse data
-dt4 = dt3.withColumn('outlet_unique_code',regexp_replace(col('outlet_unique_code'),'SF',""))\
-                    .join(POS_data,on=['outlet_unique_code'],how='left')\
-                    .withColumn('distributor_code',when(col('PartnerCode').isNull(),col('distributor_code')).otherwise(col('PartnerCode')))\
-                    .join(asm_map.withColumnRenamed('PartnerCode','distributor_code'),on=['distributor_code'],how='left')\
-                    .withColumn('asm',when(col('New_ASM').isNotNull(),col('New_ASM')).otherwise(col('asm')))\
-                    .select(req_cols_order).distinct()
-
-## Take all db from data and db_asm_mapping files 
-df_asm_map=dt4.select('distributor_code','asm').distinct()\
-              .withColumnRenamed('distributor_code','PartnerCode')\
-              .withColumnRenamed('asm','New_ASM')\
-
-db_asm_map=asm_map.unionByName(df_asm_map)\
-                  .filter(col('New_ASM').isNotNull())\
+  # For Updating ASM name -Brij (2022/11/18)
+  asm_map = spark.read.csv(path = data_path + "/INDIA_HEALTH/TEMP/DB ASM Mapping.csv", header = True, inferSchema = True, sep = ',')
+  asm_map=asm_map.withColumnRenamed('RB_CUST_CODE','PartnerCode')\
+                  .withColumnRenamed('CUSTOM_ATTR14','New_ASM')\
+                  .withColumn('New_ASM',upper(col('New_ASM')))\
+                  .withColumn('New_ASM',when(col('New_ASM') == 'ASM_HP JK/CHD', 'ASM_HP JKCHD').otherwise(col('New_ASM')))\
+                  .select('PartnerCode','New_ASM').distinct()\
                   .drop_duplicates(subset=['PartnerCode'])
+
+  ## cols order kept to be same for no error in notebook 0.1
+  req_cols_order=dt3.columns
+
+  ## Updating the 'distributor_code' and 'asm' as it is not correct in pulse data
+  dt4 = dt3.withColumn('outlet_unique_code',regexp_replace(col('outlet_unique_code'),'SF',""))\
+                      .join(POS_data,on=['outlet_unique_code'],how='left')\
+                      .withColumn('distributor_code',when(col('PartnerCode').isNull(),col('distributor_code')).otherwise(col('PartnerCode')))\
+                      .join(asm_map.withColumnRenamed('PartnerCode','distributor_code'),on=['distributor_code'],how='left')\
+                      .withColumn('asm',when(col('New_ASM').isNotNull(),col('New_ASM')).otherwise(col('asm')))\
+                      .select(req_cols_order).distinct()
+
+  ## Take all db from data and db_asm_mapping files 
+  df_asm_map=dt4.select('distributor_code','asm').distinct()\
+                .withColumnRenamed('distributor_code','PartnerCode')\
+                .withColumnRenamed('asm','New_ASM')\
+
+  db_asm_map=asm_map.unionByName(df_asm_map)\
+                    .filter(col('New_ASM').isNotNull())\
+                    .drop_duplicates(subset=['PartnerCode'])
   
-# db_asm_map.display()
+else:
+  dt4 = dt3
+  db_asm_map=dt4.select('distributor_code','asm').distinct()\
+                .withColumnRenamed('distributor_code','PartnerCode')\
+                .withColumnRenamed('asm','New_ASM')\
+
+  # db_asm_map.display()
 
 # COMMAND ----------
 
@@ -417,7 +436,17 @@ db_asm_map.write.mode('overwrite').saveAsTable(database_name + '.ASM_MAP_' + cou
 # But, India has a last notebook, Notebook 9.1 - India, that needs also a replica of raw data. That's why we are doing a copy of the data only for India.
 # Instead of writing a new table from Spark DataFrame, it is faster to just copy the table.
 
-if country_loop == 'INDIA_HOME' or country_loop == 'INDIA_HEALTH' or country_loop == 'PAK_HEALTH':
+if country_loop == 'INDIA_HOME' or country_loop == 'INDIA_HEALTH' or country_loop == 'PAK_HEALTH' or country_loop == 'MY_HEALTH':
   spark.sql('drop table if exists ' + database_name + '.vwDS_SO_' + country_home + '_2YR_raw_data')
   spark.sql('create table ' + database_name + '.vwDS_SO_' + country_home + '_2YR_raw_data' + ' as select * from ' + database_name + '.vwDS_SO_' + country_home + '_2YR')
 # Took 1 min. to write near 6 millions rows.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC 
+# MAGIC -Data Format
+# MAGIC 
+# MAGIC -col outlet_category_name is not there , new col is there i.e 'channel_local'
+# MAGIC 
+# MAGIC -
